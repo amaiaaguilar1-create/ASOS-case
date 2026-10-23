@@ -1,0 +1,20 @@
+import { describe, expect, it } from 'vitest';
+import { canUndo, CREDIT, cycleFirst, heldDressCount, KEEP_DAYS, paymentToday, REFUND_DAYS, remainingDresses, shippedAtCheckout } from './rules';
+const queue = ['d1','d2','d3'];
+describe('Version 2 order rules',()=>{
+  it('charges £160 today for the default first dress',()=>expect(paymentToday(queue,'hold')).toBe(160));
+  it('charges £529 for all three',()=>expect(paymentToday(queue,'all')).toBe(529));
+  it('ships all three for a wedding under four weeks away',()=>{expect(shippedAtCheckout(queue,'hold',true,false)).toEqual(queue);expect(paymentToday(queue,'hold',true)).toBe(529);});
+  it('ships low stock lace with the first dress for £410',()=>{expect(paymentToday(queue,'hold',false,true)).toBe(410);expect(shippedAtCheckout(queue,'hold',false,true)).toEqual(['d1','d3']);});
+  it('changes first dress cyclically and charges its price',()=>{const changed=cycleFirst(queue);expect(changed).toEqual(['d2','d3','d1']);expect(paymentToday(changed,'hold')).toBe(119);expect(cycleFirst(cycleFirst(changed))).toEqual(queue);});
+  it('offers only unsent dresses for the next choice',()=>expect(remainingDresses(queue,['d1'])).toEqual(['d2','d3']));
+  it('counts two held dresses after the first is sent',()=>expect(heldDressCount(queue,['d1'],'d1','hold')).toBe(2));
+  it('counts one held dress after two are sent',()=>expect(heldDressCount(queue,['d1','d2'],'d2','hold')).toBe(1));
+  it('counts zero held dresses when every dress is sent',()=>expect(heldDressCount(queue,queue,'d3','hold')).toBe(0));
+  it('counts zero held dresses for all-now even before dispatch',()=>expect(heldDressCount(queue,[],'d1','all')).toBe(0));
+  it('excludes the current or kept dress even when not listed as sent',()=>expect(heldDressCount(queue,['d1'],'d2','hold')).toBe(1));
+  it('allows undo before but not at 24 hours',()=>{expect(canUndo(1000,1000+24*60*60*1000-1)).toBe(true);expect(canUndo(1000,1000+24*60*60*1000)).toBe(false);expect(canUndo(null,1000)).toBe(false);});
+  it('keeps size for 21 days',()=>expect(KEEP_DAYS).toBe(21));
+  it('provides £40 alterations credit',()=>expect(CREDIT).toBe(40));
+  it('refunds within 5 days of collection',()=>expect(REFUND_DAYS).toBe(5));
+});
